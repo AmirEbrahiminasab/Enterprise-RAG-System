@@ -79,6 +79,8 @@ services:
   
     container_name: rag_app
     working_dir: /app
+    ports:
+      - "8585:8585"
     volumes:
       - .:/app
     command: tail -f /dev/null

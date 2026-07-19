@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 
-DATABASE_URL = "postgresql+asyncpg://dev_user:dev_password@localhost:5432/dev_database"
+DATABASE_URL = "postgresql+asyncpg://dev_user:dev_password@local_postgres:5432/dev_database"
 
 engine = create_async_engine(DATABASE_URL, echo=True)
 AsyncSession = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
