@@ -5,7 +5,6 @@ from sqlalchemy.orm import relationship, DeclarativeBase
 import uuid
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, EmailStr
 
 DATABASE_URL = "postgresql+asyncpg://dev_user:dev_password@local_postgres:5432/dev_database"
 
@@ -15,11 +14,6 @@ AsyncSession = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_co
 class Base(DeclarativeBase):
     pass
 
-
-class UserCreate(BaseModel):
-    name: str
-    email: EmailStr 
-    password: str
 
 # RabbitMQ enum 
 class DocumentStatus(str, Enum):
@@ -36,22 +30,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     hashed_password = Column(String, nullable=False)
 
-    documents = relationship('Document', back_populates='user')
     chats = relationship('Chat', back_populates='user')
-
-
-class Document(Base):                                                                                                                                                                                                                                                                                                   
-    __tablename__ = 'documents'
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    title = Column(String, nullable=False)
-    path = Column(String, nullable=False)
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
-    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
-
-    status = Column(SQLEnum(DocumentStatus), default=DocumentStatus.PENDING)
-
-    user = relationship('User', back_populates='documents')
-
 
 class Chat(Base):
     __tablename__ = 'chats'
@@ -62,7 +41,19 @@ class Chat(Base):
 
     user = relationship('User', back_populates='chats')
     messages = relationship('Message', back_populates='chat')
+    documents = relationship('Document', back_populates='chat')
 
+class Document(Base):                                                                                                                                                                                                                                                                                                   
+    __tablename__ = 'documents'
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String, nullable=False)
+    path = Column(String, nullable=False)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    chat_id = Column(UUID(as_uuid=True), ForeignKey('chats.id'))
+
+    status = Column(SQLEnum(DocumentStatus), default=DocumentStatus.PENDING)
+
+    chat = relationship('Chat', back_populates='documents')
 
 class Message(Base):
     __tablename__ = 'messages'

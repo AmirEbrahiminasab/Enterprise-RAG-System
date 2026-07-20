@@ -4,11 +4,12 @@ from contextlib import asynccontextmanager
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from .auth.auth import create_access_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES, verify_password, get_password_hash
-from datetime import datetime, timedelta
+from .auth.auth import create_access_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES, verify_password, get_password_hash, check_chat_access
+from datetime import timedelta
 
-from config.database import create_database, get_session, Document, User, UserCreate
-from .documents.services import create_document
+from config.database import create_database, get_session, Document, User, Chat, Message
+from config.schemas import UserCreate, ChatCreate, MessageCreate
+from .documents.services import create_document, create_chat, create_message
 from .documents.preprocess import extract_text
 
 @asynccontextmanager
@@ -18,7 +19,7 @@ async def lifespan(app):
 
 app = FastAPI(lifespan=lifespan)
 
-## These two endpoints was implemented completely by AI
+## These two endpoints were implemented completely by AI
 @app.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(User).where(User.email == form_data.username))
@@ -72,23 +73,85 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.post("/upload")
-async def upload(file: UploadFile = File(...), session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
-    text = await extract_text(file)
+@app.post("/new_chat")
+async def create_new_chat(chat_data: ChatCreate, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
+    chat = await create_chat(session, chat_data.title, current_user.id)
 
-    created_doc = await create_document(session, str(file.filename), text, current_user.id)
+    return {"message": "Chat created successfully with id {}".format(chat.id)}
 
-    return {"message": "File uploaded successfully"}
+@app.get("/chat")
+async def get_all_chats(session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
+    query = select(Chat).where(Chat.user_id == current_user.id)
 
-
-@app.get("/document")
-async def get_all_documents(session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
-    query = select(Document).where(Document.user_id == current_user.id)
-    
     result = await session.execute(query)
+    chats = result.scalars().all()
 
-    return {"documents": result.scalars().all()}
+    if not chats:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chats not found",
+        )
+
+    return {"chats": chats}
+
+@app.get("/chat/{chat_id}")
+async def get_chat(chat_id: UUID, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
+    query = select(Chat).where(Chat.id == chat_id, Chat.user_id == current_user.id)
+    result = await session.execute(query)
+    chat = result.scalars().first()
+
+    if not chat:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chat not found",
+        )
+
+    return {"chat": chat}
+
+@app.get("/chat/{chat_id}/messages")
+async def get_messages(chat_id: UUID, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
+    query = select(Message).join(Chat).where(Message.chat_id == chat_id, Chat.user_id == current_user.id)
+    result = await session.execute(query)
+    messages = result.scalars().all()
+
+    if not messages:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Messages not found",
+        )
+
+    return {"messages": messages}
+
+@app.get("/chat/{chat_id}/documents")
+async def fetch_documents(chat_id: UUID, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
+    _ = await check_chat_access(current_user, chat_id, session)
+    query = select(Document).join(Chat).where(Document.chat_id == chat_id, Chat.user_id == current_user.id)
+    result = await session.execute(query)
+    documents = result.scalars().all()
+
+    if not documents:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Documents not found",
+        )
+
+    return {"documents": documents}
+
+@app.post("/chat/{chat_id}/new_message")
+async def create_new_message(chat_id: UUID, message_data: MessageCreate, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
+    _ = await check_chat_access(current_user, chat_id, session)
+    chat = await create_message(session, message_data.content, chat_id)
+
+    return {"message": "Message created successfully with id {}".format(chat.id)}
 
 
+@app.post("/chat/{chat_id}/upload")
+async def upload(chat_id: UUID, file: UploadFile = File(...), session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
+    _ = await check_chat_access(current_user, chat_id, session)
+    text = await extract_text(file)
+    created_doc = await create_document(session, str(file.filename), text, chat_id)
+
+    return {"message": "Document uploaded successfully with id {}".format(created_doc.id)}
 
 
+    

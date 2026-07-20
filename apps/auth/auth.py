@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 import bcrypt
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -10,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 
-from config.database import get_session, User
+from config.database import get_session, User, Chat
 
 SECRET_KEY = "MANCHESTER_UNITED_IS_THE_GREATEST_TEAM_EVER!"
 ALGORITHM = "HS256"
@@ -57,3 +58,15 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: AsyncSe
     if user is None:
         raise credentials_exception
     return user
+
+async def check_chat_access(user: User, chat_id: UUID, session: AsyncSession):
+    query = select(Chat).where(Chat.id == chat_id, Chat.user_id == user.id)
+    result = await session.execute(query)
+    chat = result.scalars().first()
+    if not chat:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to perform this action",
+        )
+    
+    return chat
