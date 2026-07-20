@@ -140,9 +140,9 @@ async def fetch_documents(chat_id: UUID, session: AsyncSession = Depends(get_ses
 @app.post("/chat/{chat_id}/new_message")
 async def create_new_message(chat_id: UUID, message_data: MessageCreate, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
     _ = await check_chat_access(current_user, chat_id, session)
-    chat = await create_message(session, message_data.content, chat_id)
+    new_msg = await create_message(session, message_data.content, chat_id)
 
-    return {"message": "Message created successfully with id {}".format(chat.id)}
+    return {"message": "Message created successfully with id {}".format(new_msg.id)}
 
 
 @app.post("/chat/{chat_id}/upload")

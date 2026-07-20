@@ -9,7 +9,7 @@ from enum import Enum
 DATABASE_URL = "postgresql+asyncpg://dev_user:dev_password@local_postgres:5432/dev_database"
 
 engine = create_async_engine(DATABASE_URL, echo=True)
-AsyncSession = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 class Base(DeclarativeBase):
     pass
@@ -61,6 +61,7 @@ class Message(Base):
     content = Column(String, nullable=False)
     sent_at = Column(DateTime, default=datetime.utcnow)
     chat_id = Column(UUID(as_uuid=True), ForeignKey('chats.id'))
+    role = Column(String, nullable=False)
 
     chat = relationship('Chat', back_populates='messages')
 
@@ -69,7 +70,7 @@ async def create_database():
         await conn.run_sync(Base.metadata.create_all)
 
 async def get_session():
-    async with AsyncSession() as session:
+    async with AsyncSessionLocal() as session:
         try:
             yield session
         finally:
