@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship, DeclarativeBase
 import uuid
 from datetime import datetime
 from enum import Enum
+from pydantic import BaseModel, EmailStr
 
 DATABASE_URL = "postgresql+asyncpg://dev_user:dev_password@local_postgres:5432/dev_database"
 
@@ -14,7 +15,13 @@ AsyncSession = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_co
 class Base(DeclarativeBase):
     pass
 
-# RabbitMQ enum
+
+class UserCreate(BaseModel):
+    name: str
+    email: EmailStr 
+    password: str
+
+# RabbitMQ enum 
 class DocumentStatus(str, Enum):
     PENDING = "pending"
     PROCESSING = "processing"
@@ -27,8 +34,10 @@ class User(Base):
     name = Column(String, nullable=False)                                                                                                                                                   
     email = Column(String, nullable=False, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    hashed_password = Column(String, nullable=False)
 
     documents = relationship('Document', back_populates='user')
+    chats = relationship('Chat', back_populates='user')
 
 
 class Document(Base):                                                                                                                                                                                                                                                                                                   
@@ -43,6 +52,26 @@ class Document(Base):
 
     user = relationship('User', back_populates='documents')
 
+
+class Chat(Base):
+    __tablename__ = 'chats'
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+
+    user = relationship('User', back_populates='chats')
+    messages = relationship('Message', back_populates='chat')
+
+
+class Message(Base):
+    __tablename__ = 'messages'
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    content = Column(String, nullable=False)
+    sent_at = Column(DateTime, default=datetime.utcnow)
+    chat_id = Column(UUID(as_uuid=True), ForeignKey('chats.id'))
+
+    chat = relationship('Chat', back_populates='messages')
 
 async def create_database():
     async with engine.begin() as conn:
