@@ -3,8 +3,9 @@ from celery import Celery
 
 celery_app = Celery(
     "rag_system",
-    broker=os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672//"),
-    backend="redis://localhost:6379/0"  
+    broker="amqp://dev_user:dev_password@rabbitmq:5672//",
+    backend="redis://redis:6379/0" ,
+    include=['workers.cpu_document_worker', 'workers.gpu_document_worker']
 )
 
 celery_app.conf.task_routes = {

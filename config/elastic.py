@@ -1,8 +1,8 @@
-from elasticsearch import Elasticsearch
+from elasticsearch import AsyncElasticsearch
 from typing import List, Dict, Any
 from uuid import UUID
 
-es = Elasticsearch("http://localhost:9200")
+es = AsyncElasticsearch("http://elasticsearch:9200")
 
 INDEX_NAME = "rag"
 
@@ -21,7 +21,6 @@ async def create_elastic_index():
                     
                     "embedding": {
                         "type": "dense_vector",
-                        "dims": 2048,
                         "index": True,
                         "similarity": "cosine" 
                     }

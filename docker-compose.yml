@@ -87,6 +87,24 @@ services:
     command: server /data --console-address ":9001"
     networks:
       - dev_network
+  
+  celery_worker:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: local_celery_worker
+    working_dir: /app
+    environment:
+      - HF_HOME=/app/.cache/huggingface
+    volumes:
+      - .:/app
+    command: celery -A config.celery_config.celery_app worker -Q cpu_queue,gpu_queue --loglevel=INFO
+    networks:
+      - dev_network
+    depends_on:
+      - rabbitmq
+      - redis
+    gpus: all
 
   app:
     build: 

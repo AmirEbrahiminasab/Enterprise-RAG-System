@@ -35,3 +35,20 @@ async def upload_to_s3(file: UploadFile) -> str:
         await s3.put_object(Bucket=BUCKET_NAME, Key=object_key, Body=file_content)
         
     return object_key
+
+async def read_from_s3(object_key: str):
+    session = aioboto3.Session()
+
+    async with session.client(
+        "s3",
+        endpoint_url=MINIO_ENDPOINT,
+        aws_access_key_id=MINIO_ACCESS_KEY,
+        aws_secret_access_key=MINIO_SECRET_KEY,
+    ) as s3:
+        response = await s3.get_object(
+            Bucket=BUCKET_NAME,
+            Key=object_key,
+        )
+
+        content = await response["Body"].read()
+        return content

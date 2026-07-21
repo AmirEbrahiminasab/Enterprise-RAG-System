@@ -1,21 +1,23 @@
+import asyncio
 from io import BytesIO
 from pathlib import Path
+
 from fastapi import HTTPException, UploadFile
-from pypdf import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from pypdf import PdfReader
+
+from config.s3 import read_from_s3
 
 
-async def extract_text(file: UploadFile) -> str:
-    extension = Path(file.filename).suffix.lower()
-    contents = await file.read()
+def _extract_text_from_bytes(contents: bytes, filename: str) -> str:
+    extension = Path(filename).suffix.lower()
 
     if extension == ".txt":
         try:
             return contents.decode("utf-8")
         except UnicodeDecodeError:
             raise HTTPException(
-                status_code=400,
-                detail="Text file must be UTF-8 encoded."
+                status_code=400, detail="Text file must be UTF-8 encoded."
             )
 
     elif extension == ".pdf":
@@ -30,20 +32,30 @@ async def extract_text(file: UploadFile) -> str:
         return text
 
     raise HTTPException(
-        status_code=400,
-        detail="Only .pdf and .txt files are supported."
+        status_code=400, detail="Only .pdf and .txt files are supported."
     )
 
-def extract_and_chunk_text(file: UploadFile) -> list:
-    text = extract_text(file)
+
+async def extract_text(file: UploadFile) -> str:
+    contents = await file.read()
+    return _extract_text_from_bytes(contents, file.filename)
+
+
+def extract_and_chunk_text(file_path: str, filename: str) -> list:
+    # `file_path` is the S3 object key, which has a generated suffix appended
+    # to it (see `upload_to_s3`), so it can't be used to reliably infer the
+    # file extension. `filename` is the original, user-provided filename and
+    # should be used for that instead.
+    contents = asyncio.run(read_from_s3(file_path))
+    text = _extract_text_from_bytes(contents, filename)
 
     separators = [
-        "\n# ",      
-        "\n## ",     
-        "\n### ",    
-        "\n#### ",   
-        "\n```",     
-        "\n\n",      
+        "\n# ",
+        "\n## ",
+        "\n### ",
+        "\n#### ",
+        "\n```",
+        "\n\n",
         "\n",
         ". ",
         "! ",
@@ -52,7 +64,7 @@ def extract_and_chunk_text(file: UploadFile) -> list:
         ": ",
         ", ",
         " ",
-        ""
+        "",
     ]
 
     splitter = RecursiveCharacterTextSplitter(

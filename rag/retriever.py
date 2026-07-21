@@ -7,23 +7,21 @@ class EmbeddingModel:
 
     def load_model(self):
 
-        MODEL_ID = "nvidia/Nemotron-3-Embed-1B-BF16"
+        MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
 
         model = SentenceTransformer(
             MODEL_ID,
             device="cuda",
             model_kwargs={
                 "dtype": torch.bfloat16,
-                "attn_implementation": "flash_attention_2",
+                "attn_implementation": "sdpa",
             },
         )
-        model.max_seq_length = 32768
+        model.max_seq_length = 1000
 
         return model
 
-    def embed_query(self, queries: list):
-        return self.model.encode_query(queries, batch_size=2, convert_to_tensor=True)
+    def embed(self, sentences: list):
+        return self.model.encode(sentences, batch_size=2, convert_to_tensor=True)
     
-    def embed_document(self, documents: list):
-        return self.model.encode_document(documents, batch_size=2, convert_to_tensor=True)
 

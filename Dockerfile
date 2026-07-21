@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir --upgrade pip \
         torch torchvision torchaudio \
         --index-url https://download.pytorch.org/whl/cu124
 
+RUN pip install elasticsearch==8.12.0
 
 COPY . .
 

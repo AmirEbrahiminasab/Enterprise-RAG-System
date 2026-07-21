@@ -1,9 +1,10 @@
-from .celery_config import celery_app
 from uuid import UUID
 from typing import List, Dict, Any
-from config.elastic import es, INDEX_NAME
 
+from config.elastic import es, INDEX_NAME
 from rag.retriever import EmbeddingModel
+from config.celery_config import celery_app
+
 
 embed_model = EmbeddingModel()
 
@@ -15,7 +16,7 @@ embed_model = EmbeddingModel()
     acks_late=True,
 )
 def index_document_chunks(user_id: UUID, chat_id: UUID, document_id: UUID, chunks: List[str]):
-    embeddings = embed_model.embed_document(chunks).tolist()
+    embeddings = embed_model.embed(chunks).tolist()
     
     operations = []
     for i, (chunk, vector) in enumerate(zip(chunks, embeddings)):
@@ -45,7 +46,7 @@ def index_document_chunks(user_id: UUID, chat_id: UUID, document_id: UUID, chunk
     acks_late=True,
 )
 def hybrid_search(user_id: UUID, chat_id: UUID, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-    query_vector = embed_model.embed_query([query])[0].tolist()
+    query_vector = embed_model.embed([query])[0].tolist()
     
     search_body = {
         "size": top_k,
