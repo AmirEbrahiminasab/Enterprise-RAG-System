@@ -1,6 +1,8 @@
 import aioboto3
 import uuid
 from fastapi import UploadFile
+from botocore.exceptions import ClientError
+
 
 MINIO_ENDPOINT = "http://minio:9000"
 MINIO_ACCESS_KEY = "dev_user"
@@ -16,6 +18,18 @@ async def upload_to_s3(file: UploadFile) -> str:
                               endpoint_url=MINIO_ENDPOINT,
                               aws_access_key_id=MINIO_ACCESS_KEY,
                               aws_secret_access_key=MINIO_SECRET_KEY) as s3:
+        
+        try:
+            await s3.head_bucket(Bucket=BUCKET_NAME)
+        except ClientError as e:
+            error_code = str(e.response.get('Error', {}).get('Code', ''))
+            status_code = e.response.get('ResponseMetadata', {}).get('HTTPStatusCode')
+            
+            if error_code == '404' or error_code == 'NoSuchBucket' or status_code == 404:
+                await s3.create_bucket(Bucket=BUCKET_NAME)
+            else:
+                raise e
+        
         
         file_content = await file.read()
         await s3.put_object(Bucket=BUCKET_NAME, Key=object_key, Body=file_content)

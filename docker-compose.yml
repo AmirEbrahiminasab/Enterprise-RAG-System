@@ -97,6 +97,8 @@ services:
     working_dir: /app
     ports:
       - "8585:8585"
+    environment:
+      - HF_HOME=/app/.cache/huggingface
     volumes:
       - .:/app
     command: tail -f /dev/null
@@ -109,10 +111,7 @@ services:
       - rabbitmq
       - elasticsearch
       - minio
-    device_requests:
-      - driver: nvidia
-        count: all
-        capabilities: [gpu]
+    gpus: all
 
 volumes:
   postgres_data:

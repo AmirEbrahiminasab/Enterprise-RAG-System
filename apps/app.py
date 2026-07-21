@@ -8,6 +8,7 @@ from .auth.auth import create_access_token, get_current_user, ACCESS_TOKEN_EXPIR
 from datetime import timedelta
 
 from config.database import create_database, get_session, Document, User, Chat, Message
+from config.elastic import create_elastic_index
 from config.schemas import UserCreate, ChatCreate, MessageCreate
 from config.s3 import upload_to_s3
 from .documents.services import create_document, create_chat, create_message
@@ -17,6 +18,7 @@ from workers.cpu_document_worker import start_document_processing
 @asynccontextmanager
 async def lifespan(app):
     await create_database()
+    await create_elastic_index()
     yield
 
 app = FastAPI(lifespan=lifespan)
