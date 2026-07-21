@@ -12,21 +12,11 @@ DATABASE_URL = (
     "postgresql+asyncpg://dev_user:dev_password@local_postgres:5432/dev_database"
 )
 
-# Used by the FastAPI app: one process, one long-lived event loop for its whole
-# lifetime, so normal connection pooling is safe and desirable here.
 engine = create_async_engine(DATABASE_URL, echo=True)
 AsyncSessionLocal = async_sessionmaker(
     bind=engine, class_=AsyncSession, expire_on_commit=False
 )
 
-# Used by Celery workers. Each task runs its own async code via `asyncio.run()`,
-# which creates and destroys a brand-new event loop per task. SQLAlchemy's default
-# pool keeps asyncio-native objects (queues/locks) tied to whichever event loop was
-# active when connections were checked out, so sharing a pooled engine across
-# multiple `asyncio.run()` calls corrupts asyncpg's internal state and raises errors
-# like "cannot perform operation: another operation is in progress".
-# NullPool sidesteps this entirely: every checkout opens a brand-new connection and
-# every checkin closes it, so no connection or pool state ever crosses event loops.
 worker_engine = create_async_engine(DATABASE_URL, echo=True, poolclass=NullPool)
 WorkerSessionLocal = async_sessionmaker(
     bind=worker_engine, class_=AsyncSession, expire_on_commit=False

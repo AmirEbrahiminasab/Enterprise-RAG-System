@@ -11,13 +11,6 @@ from workers.gpu_document_worker import hybrid_search, index_document_chunks
 
 
 def _set_document_status(document_id: UUID, status: DocumentStatus) -> None:
-    """Update a document's status from synchronous Celery task code.
-
-    Opens a fresh session/connection (via `WorkerSessionLocal`, which uses
-    NullPool) scoped to a single `asyncio.run()` call, so nothing is shared
-    across event loops between task invocations.
-    """
-
     async def _update():
         async with WorkerSessionLocal() as session:
             await update_document_status(session, document_id, status)
