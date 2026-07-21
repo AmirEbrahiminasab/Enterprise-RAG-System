@@ -42,10 +42,6 @@ async def extract_text(file: UploadFile) -> str:
 
 
 def extract_and_chunk_text(file_path: str, filename: str) -> list:
-    # `file_path` is the S3 object key, which has a generated suffix appended
-    # to it (see `upload_to_s3`), so it can't be used to reliably infer the
-    # file extension. `filename` is the original, user-provided filename and
-    # should be used for that instead.
     contents = asyncio.run(read_from_s3(file_path))
     text = _extract_text_from_bytes(contents, filename)
 

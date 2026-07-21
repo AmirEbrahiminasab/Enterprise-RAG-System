@@ -5,48 +5,46 @@ from config.elastic import es, INDEX_NAME
 from rag.retriever import EmbeddingModel
 from config.celery_config import celery_app
 
+_embed_model = None
 
-embed_model = EmbeddingModel()
-
-@celery_app.task(
-    bind=True,
-    autoretry_for=(Exception,),
-    retry_backoff=True,
-    max_retries=3,
-    acks_late=True,
-)
-def index_document_chunks(user_id: UUID, chat_id: UUID, document_id: UUID, chunks: List[str]):
-    embeddings = embed_model.embed(chunks).tolist()
-    
-    operations = []
-    for i, (chunk, vector) in enumerate(zip(chunks, embeddings)):
-        action = {"index": {"_index": INDEX_NAME}}
-        doc = {
-            "user_id": str(user_id),
-            "chat_id": str(chat_id),
-            "document_id": str(document_id),
-            "chunk_index": i,
-            "text_content": chunk,
-            "embedding": vector
-        }
-        operations.append(action)
-        operations.append(doc)
-        
-    if operations:
-        response = es.bulk(operations=operations)
-        if response.get("errors"):
-            print("Errors occurred during bulk indexing.")
-            raise Exception(f"Bulk indexing failed.\n{response}")
+def get_embed_model():
+    global _embed_model
+    if _embed_model is None:
+        _embed_model = EmbeddingModel()
+    return _embed_model
 
 @celery_app.task(
     bind=True,
     autoretry_for=(Exception,),
     retry_backoff=True,
+    queue="gpu_queue",
     max_retries=3,
     acks_late=True,
 )
-def hybrid_search(user_id: UUID, chat_id: UUID, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-    query_vector = embed_model.embed([query])[0].tolist()
+def index_document_chunks(self, user_id: UUID, chat_id: UUID, document_id: UUID, chunk: str, chunk_index: int):
+    model = get_embed_model()
+    embeddings = model.embed([chunk]).tolist()
+
+    es.index(index=INDEX_NAME, id=str(document_id), body={
+        "user_id": str(user_id),
+        "chat_id": str(chat_id),
+        "document_id": str(document_id),
+        "chunk_index": chunk_index,
+        "text_content": chunk,
+        "embedding": embeddings[0]
+    })
+
+@celery_app.task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    queue="gpu_queue",
+    max_retries=3,
+    acks_late=True,
+)
+def hybrid_search(self, user_id: UUID, chat_id: UUID, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    model = get_embed_model()
+    query_vector = model.embed([query])[0].tolist()
     
     search_body = {
         "size": top_k,

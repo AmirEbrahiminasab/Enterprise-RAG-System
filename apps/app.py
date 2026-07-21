@@ -208,9 +208,7 @@ async def upload(
 
     created_doc = await create_document(session, str(file.filename), file_path, chat_id)
 
-    start_document_processing.delay(
-        current_user.id, created_doc.id, file_path, chat_id, file.filename
-    )
+    start_document_processing.delay(current_user.id, created_doc.id, file_path, chat_id, file.filename)
 
     return {
         "message": "Document uploaded successfully with id {}".format(created_doc.id)

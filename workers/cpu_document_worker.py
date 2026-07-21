@@ -25,13 +25,13 @@ def _set_document_status(document_id: UUID, status: DocumentStatus) -> None:
     asyncio.run(_update())
 
 
-@celery_app.task(name="tasks.cpu.mark_document_completed")
+@celery_app.task(name="tasks.cpu.mark_document_completed", queue="cpu_queue")
 def mark_document_completed(results, document_id: UUID):
     _set_document_status(document_id, DocumentStatus.COMPLETED)
 
 
-@celery_app.task(name="tasks.cpu.handle_document_failure")
-def handle_document_failure(request, exc, traceback, document_id: UUID):
+@celery_app.task(name="tasks.cpu.handle_document_failure", queue="cpu_queue")
+def handle_document_failure( document_id: UUID, request, exc, traceback):
     _set_document_status(document_id, DocumentStatus.FAILED)
 
 
@@ -42,18 +42,19 @@ def handle_document_failure(request, exc, traceback, document_id: UUID):
     autoretry_for=(ConnectionError,),
     retry_backoff=True,
 )
-def start_document_processing(
-    self, user_id: UUID, document_id: UUID, file_path: str, chat_id: UUID, filename: str
-):
+def start_document_processing(self, user_id: UUID, document_id: UUID, file_path: str, chat_id: UUID, filename: str):
     _set_document_status(document_id, DocumentStatus.PROCESSING)
 
     chunks = extract_and_chunk_text(file_path, filename)
 
     parallel_tasks = [
-        index_document_chunks.s(user_id, chat_id, document_id, chunk)
+        index_document_chunks.s(user_id, chat_id, document_id, chunk, i)
         for i, chunk in enumerate(chunks)
     ]
 
-    chord(parallel_tasks)(mark_document_completed.s(document_id)).on_error(
+    body_signature = mark_document_completed.s(document_id).on_error(
         handle_document_failure.s(document_id)
     )
+
+    chord(parallel_tasks)(body_signature)
+
