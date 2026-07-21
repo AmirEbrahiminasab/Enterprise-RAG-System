@@ -1,16 +1,15 @@
-FROM python:3.12-slim
-
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 WORKDIR /app
 
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir \
+        torch torchvision torchaudio \
+        --index-url https://download.pytorch.org/whl/cu124
 
-RUN pip install python-multipart pypdf
-
-RUN pip install "passlib[bcrypt]" "python-jose[cryptography]" python-multipart "pydantic[email]"
 
 COPY . .
 

@@ -109,6 +109,10 @@ services:
       - rabbitmq
       - elasticsearch
       - minio
+    device_requests:
+      - driver: nvidia
+        count: all
+        capabilities: [gpu]
 
 volumes:
   postgres_data:
