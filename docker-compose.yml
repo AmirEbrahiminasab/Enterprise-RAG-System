@@ -72,6 +72,22 @@ services:
     networks:
       - dev_network
 
+  minio:
+    image: minio/minio:latest
+    container_name: local_minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: dev_user
+      MINIO_ROOT_PASSWORD: dev_password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - dev_network
+
   app:
     build: 
       context: .
@@ -92,6 +108,7 @@ services:
       - redis
       - rabbitmq
       - elasticsearch
+      - minio
 
 volumes:
   postgres_data:
@@ -99,6 +116,7 @@ volumes:
   elasticsearch_data:
   rabbitmq_data:
   redis_data:
+  minio_data:
 
 
 networks:

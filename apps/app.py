@@ -9,8 +9,10 @@ from datetime import timedelta
 
 from config.database import create_database, get_session, Document, User, Chat, Message
 from config.schemas import UserCreate, ChatCreate, MessageCreate
+from config.s3 import upload_to_s3
 from .documents.services import create_document, create_chat, create_message
-from .documents.preprocess import extract_text
+from workers.cpu_document_worker import start_document_processing
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -144,12 +146,15 @@ async def create_new_message(chat_id: UUID, message_data: MessageCreate, session
 
     return {"message": "Message created successfully with id {}".format(new_msg.id)}
 
-
 @app.post("/chat/{chat_id}/upload")
 async def upload(chat_id: UUID, file: UploadFile = File(...), session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
     _ = await check_chat_access(current_user, chat_id, session)
-    text = await extract_text(file)
-    created_doc = await create_document(session, str(file.filename), text, chat_id)
+
+    file_path = await upload_to_s3(file)
+
+    created_doc = await create_document(session, str(file.filename), file_path, chat_id)
+
+    start_document_processing.delay(session, created_doc.id, file_path, chat_id)
 
     return {"message": "Document uploaded successfully with id {}".format(created_doc.id)}
 
