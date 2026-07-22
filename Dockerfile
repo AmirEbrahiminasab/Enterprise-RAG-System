@@ -12,6 +12,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 RUN pip install elasticsearch==8.12.0
 
+RUN pip install httpx[socks]
+
 COPY . .
 
 EXPOSE 8585

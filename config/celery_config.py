@@ -5,7 +5,7 @@ celery_app = Celery(
     "rag_system",
     broker="amqp://dev_user:dev_password@rabbitmq:5672//",
     backend="redis://redis:6379/0" ,
-    include=['workers.cpu_document_worker', 'workers.gpu_document_worker']
+    include=['workers.cpu_worker', 'workers.gpu_worker']
 )
 
 celery_app.conf.task_routes = {

@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +12,7 @@ from config.database import Chat, Document, Message, User, create_database, get_
 from config.elastic import create_elastic_index
 from config.s3 import upload_to_s3
 from config.schemas import ChatCreate, MessageCreate, UserCreate
-from workers.cpu_document_worker import start_document_processing
+from workers.cpu_worker import start_document_processing, start_query_processing
 
 from .auth.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -190,9 +191,12 @@ async def create_new_message(
     current_user: User = Depends(get_current_user),
 ):
     _ = await check_chat_access(current_user, chat_id, session)
-    new_msg = await create_message(session, message_data.content, chat_id)
+    _ = await create_message(db=session, content=message_data.content, role="user", chat_id=chat_id)
 
-    return {"message": "Message created successfully with id {}".format(new_msg.id)}
+    return StreamingResponse(
+        start_query_processing(current_user.id, message_data.content, chat_id),
+        media_type="text/event-stream"
+    )
 
 
 @app.post("/chat/{chat_id}/upload")
