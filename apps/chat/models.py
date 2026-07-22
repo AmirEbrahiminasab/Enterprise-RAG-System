@@ -72,3 +72,15 @@ class ChatAgent:
                             yield content
                     except json.JSONDecodeError:
                         continue
+                    
+
+if __name__ == "__main__":
+  router = RouterAgent()
+  print(router.run("what is the capital of france?", {}))
+
+
+
+
+
+
+        

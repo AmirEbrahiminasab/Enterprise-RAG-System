@@ -14,6 +14,9 @@ RUN pip install elasticsearch==8.12.0
 
 RUN pip install httpx[socks]
 
+COPY PySocks-1.7.1.tar.gz .
+RUN pip install ./PySocks-1.7.1.tar.gz
+
 COPY . .
 
 EXPOSE 8585

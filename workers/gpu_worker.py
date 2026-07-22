@@ -1,11 +1,20 @@
+import asyncio
 from uuid import UUID
 from typing import List, Dict, Any
+from elasticsearch import AsyncElasticsearch
 
 from config.elastic import es, INDEX_NAME
 from rag.retriever import EmbeddingModel
 from config.celery_config import celery_app
 
 _embed_model = None
+
+async def _async_search(search_body):
+    async_es = AsyncElasticsearch("http://elasticsearch:9200")
+    try:
+        return await async_es.search(index=INDEX_NAME, body=search_body)
+    finally:
+        await async_es.close()
 
 def get_embed_model():
     global _embed_model
@@ -25,14 +34,14 @@ def index_document_chunks(self, user_id: UUID, chat_id: UUID, document_id: UUID,
     model = get_embed_model()
     embeddings = model.embed([chunk]).tolist()
 
-    es.index(index=INDEX_NAME, id=str(document_id), body={
+    asyncio.run(es.index(index=INDEX_NAME, id=str(document_id), body={
         "user_id": str(user_id),
         "chat_id": str(chat_id),
         "document_id": str(document_id),
         "chunk_index": chunk_index,
         "text_content": chunk,
         "embedding": embeddings[0]
-    })
+    }))
 
 @celery_app.task(
     bind=True,
@@ -61,7 +70,14 @@ def hybrid_search(self, user_id: UUID, chat_id: UUID, query: str, top_k: int = 5
         "query": {
             "bool": {
                 "must": [
-                    {"match": {"text_content": query, "minimum_should_match": "20%"}}
+                    {
+                        "match": {
+                            "text_content": {
+                            "query": query, 
+                            "minimum_should_match": "20%"
+                            }
+                        }
+                    }
                 ],
                 "filter": [
                     {"term": {"user_id": str(user_id)}},
@@ -69,13 +85,10 @@ def hybrid_search(self, user_id: UUID, chat_id: UUID, query: str, top_k: int = 5
                 ]
             }
         },
-        "rank": {
-            "rrf": {}
-        },
         "_source": ["document_id", "chunk_index", "text_content"]
     }
 
-    response = es.search(index=INDEX_NAME, body=search_body)
+    response = asyncio.run(_async_search(search_body))
     
     results = []
     for hit in response["hits"]["hits"]:

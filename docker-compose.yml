@@ -96,10 +96,11 @@ services:
     working_dir: /app
     environment:
       - HF_HOME=/app/.cache/huggingface
-      # - HTTPS_PROXY=${HTTPS_PROXY}
-      # - HTTP_PROXY=${HTTP_PROXY}
-      # - NO_PROXY=localhost,127.0.0.1,minio,redis,postgres,mongodb,rabbitmq,elasticsearch
-      # - no_proxy=localhost,127.0.0.1,minio,redis,postgres,mongodb,rabbitmq,elasticsearch
+      - HF_HUB_OFFLINE=1
+      - HTTPS_PROXY=${HTTPS_PROXY}
+      - HTTP_PROXY=${HTTP_PROXY}
+      - NO_PROXY=localhost,127.0.0.1,minio,redis,postgres,mongodb,rabbitmq,elasticsearch
+      - no_proxy=localhost,127.0.0.1,minio,redis,postgres,mongodb,rabbitmq,elasticsearch
     volumes:
       - .:/app
     command: celery -A config.celery_config.celery_app worker -Q cpu_queue,gpu_queue --loglevel=INFO
@@ -109,8 +110,8 @@ services:
       - rabbitmq
       - redis
     gpus: all
-    # extra_hosts:
-    #   - "host.docker.internal:host-gateway"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   app:
     build: 
@@ -123,10 +124,11 @@ services:
       - "8585:8585"
     environment:
       - HF_HOME=/app/.cache/huggingface
-      # - HTTPS_PROXY=${HTTPS_PROXY}
-      # - HTTP_PROXY=${HTTP_PROXY}
-      # - NO_PROXY=localhost,127.0.0.1,minio,redis,postgres,mongodb,rabbitmq,elasticsearch
-      # - no_proxy=localhost,127.0.0.1,minio,redis,postgres,mongodb,rabbitmq,elasticsearch
+      - HF_HUB_OFFLINE=1
+      - HTTPS_PROXY=${HTTPS_PROXY}
+      - HTTP_PROXY=${HTTP_PROXY}
+      - NO_PROXY=localhost,127.0.0.1,minio,redis,postgres,mongodb,rabbitmq,elasticsearch
+      - no_proxy=localhost,127.0.0.1,minio,redis,postgres,mongodb,rabbitmq,elasticsearch
     volumes:
       - .:/app
     command: tail -f /dev/null
@@ -140,8 +142,8 @@ services:
       - elasticsearch
       - minio
     gpus: all
-    # extra_hosts:
-    #   - "host.docker.internal:host-gateway"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   postgres_data:

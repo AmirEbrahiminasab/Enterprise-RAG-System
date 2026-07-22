@@ -23,6 +23,7 @@ def _set_document_status(document_id: UUID, status: DocumentStatus) -> None:
 def _router_call(query: str, history: list):
     router = RouterAgent(ROUTER_SYSTEM_PROMPT)
     response = router.run(query, history)
+    
     try:
         parsed = json.loads(response)
         return parsed.get("questions", [])
@@ -83,7 +84,7 @@ async def start_query_processing(user_id: UUID, content: str, chat_id: UUID):
     if not questions_data:
         yield "I couldn't generate a strategy to answer that query."
         return
-
+    
     questions_docs = await asyncio.to_thread(_call_queries, questions_data, user_id, chat_id)
 
     full_answer = ""
