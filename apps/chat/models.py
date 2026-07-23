@@ -67,9 +67,12 @@ class ChatAgent:
                 if line.startswith("data: ") and line != "data: [DONE]":
                     try:
                         chunk = json.loads(line[6:])
-                        content = chunk['choices'][0]['delta'].get('content', '')
-                        if content:
-                            yield content
+                        choices = chunk.get('choices', [])
+                        
+                        if choices:
+                            content = choices[0].get('delta', {}).get('content', '')
+                            if content:
+                                yield content
                     except json.JSONDecodeError:
                         continue
                     

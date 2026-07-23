@@ -7,7 +7,7 @@ es = AsyncElasticsearch("http://elasticsearch:9200")
 INDEX_NAME = "rag"
 
 async def create_elastic_index():
-    if not es.indices.exists(index=INDEX_NAME):
+    if not await es.indices.exists(index=INDEX_NAME):
         mapping = {
             "mappings": {
                 "properties": {
@@ -27,4 +27,4 @@ async def create_elastic_index():
                 }
             }
         }
-        es.indices.create(index=INDEX_NAME, body=mapping)
+        await es.indices.create(index=INDEX_NAME, body=mapping)
