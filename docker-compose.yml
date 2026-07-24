@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   postgres:
@@ -36,7 +36,7 @@ services:
     restart: always
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false 
+      - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
       - "9200:9200"
@@ -87,12 +87,12 @@ services:
     command: server /data --console-address ":9001"
     networks:
       - dev_network
-  
-  celery_worker:
-    build: 
+
+  cpu_worker:
+    build:
       context: .
       dockerfile: Dockerfile
-    container_name: local_celery_worker
+    container_name: local_cpu_worker
     working_dir: /app
     environment:
       - HF_HOME=/app/.cache/huggingface
@@ -103,7 +103,31 @@ services:
       - no_proxy=localhost,127.0.0.1,minio,redis,postgres,mongodb,rabbitmq,elasticsearch
     volumes:
       - .:/app
-    command: celery -A config.celery_config.celery_app worker -Q cpu_queue,gpu_queue --loglevel=INFO
+    command: celery -A config.celery_config.celery_app worker -Q cpu_queue --concurrency=4 --loglevel=INFO
+    networks:
+      - dev_network
+    depends_on:
+      - rabbitmq
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  gpu_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: local_gpu_worker
+    working_dir: /app
+    environment:
+      - HF_HOME=/app/.cache/huggingface
+      - HF_HUB_OFFLINE=1
+      - HTTPS_PROXY=${HTTPS_PROXY}
+      - HTTP_PROXY=${HTTP_PROXY}
+      - NO_PROXY=localhost,127.0.0.1,minio,redis,postgres,mongodb,rabbitmq,elasticsearch
+      - no_proxy=localhost,127.0.0.1,minio,redis,postgres,mongodb,rabbitmq,elasticsearch
+    volumes:
+      - .:/app
+    command: celery -A config.celery_config.celery_app worker -Q gpu_queue --concurrency=2 --loglevel=INFO
     networks:
       - dev_network
     depends_on:
@@ -114,10 +138,10 @@ services:
       - "host.docker.internal:host-gateway"
 
   app:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
-  
+
     container_name: rag_app
     working_dir: /app
     ports:
@@ -152,7 +176,6 @@ volumes:
   rabbitmq_data:
   redis_data:
   minio_data:
-
 
 networks:
   dev_network:

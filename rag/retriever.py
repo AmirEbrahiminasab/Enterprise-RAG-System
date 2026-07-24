@@ -1,6 +1,7 @@
 import torch
 from sentence_transformers import SentenceTransformer
 
+
 class EmbeddingModel:
     def __init__(self):
         self.model = self.load_model()
@@ -22,6 +23,4 @@ class EmbeddingModel:
         return model
 
     def embed(self, sentences: list):
-        return self.model.encode(sentences, batch_size=2, convert_to_tensor=True)
-    
-
+        return self.model.encode(sentences, batch_size=4, convert_to_tensor=True)
