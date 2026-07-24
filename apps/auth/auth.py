@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 import bcrypt
+import os
+from dotenv import load_dotenv
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
@@ -10,10 +12,11 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-
 from config.database import get_session, User, Chat
 
-SECRET_KEY = "MANCHESTER_UNITED_IS_THE_GREATEST_TEAM_EVER!"
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY_AUTH")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
