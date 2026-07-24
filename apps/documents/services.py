@@ -2,7 +2,7 @@ from config.database import Document, Chat, Message, DocumentStatus
 
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 
 
 async def create_document(db: AsyncSession, title: str, path: str, chat_id: UUID):
@@ -50,5 +50,8 @@ async def get_chat_history(db: AsyncSession, chat_id: UUID):
     
     yield history
 
-
+async def remove_failed_document(db: AsyncSession, document_id: UUID):
+    result = await db.execute(delete(Document).where(Document.id == document_id))
+    await db.commit()
+    await db.refresh(result)
     

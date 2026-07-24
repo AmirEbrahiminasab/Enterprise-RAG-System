@@ -5,13 +5,19 @@ from uuid import UUID
 from celery import chord, group
 
 from apps.documents.preprocess import extract_and_chunk_text
-from apps.documents.services import update_document_status, get_chat_history, create_message
+from apps.documents.services import update_document_status, get_chat_history, create_message, remove_failed_document
 from apps.chat.prompts import ROUTER_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from config.celery_config import celery_app
 from config.database import DocumentStatus, WorkerSessionLocal
 from apps.chat.models import ChatAgent, RouterAgent
 from workers.gpu_worker import hybrid_search, index_document_chunks
 
+def _rm_failed_docs(document_id: UUID):
+    async def _remove():
+        async with WorkerSessionLocal() as session:
+            await remove_failed_document(session, document_id)
+
+    asyncio.run(_remove())
 
 def _set_document_status(document_id: UUID, status: DocumentStatus) -> None:
     async def _update():
@@ -113,8 +119,9 @@ def mark_document_completed(results, document_id: UUID):
 
 
 @celery_app.task(name="tasks.cpu.handle_document_failure", queue="cpu_queue")
-def handle_document_failure( document_id: UUID, request, exc, traceback):
+def handle_document_failure(document_id: UUID, request, exc, traceback):
     _set_document_status(document_id, DocumentStatus.FAILED)
+    _rm_failed_docs(document_id)
 
 
 @celery_app.task(
