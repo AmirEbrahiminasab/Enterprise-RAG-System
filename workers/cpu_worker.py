@@ -9,15 +9,17 @@ from apps.documents.services import update_document_status, get_chat_history, cr
 from apps.chat.prompts import ROUTER_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from config.celery_config import celery_app
 from config.database import DocumentStatus, WorkerSessionLocal
+from config.elastic import delete_document_chunks
 from apps.chat.models import ChatAgent, RouterAgent
 from workers.gpu_worker import hybrid_search, index_document_chunks
 
-def _rm_failed_docs(document_id: UUID):
-    async def _remove():
+def _cleanup_failed_document(document_id: UUID):
+    async def _run():
+        await delete_document_chunks(document_id)
         async with WorkerSessionLocal() as session:
             await remove_failed_document(session, document_id)
 
-    asyncio.run(_remove())
+    asyncio.run(_run())
 
 def _set_document_status(document_id: UUID, status: DocumentStatus) -> None:
     async def _update():
@@ -121,7 +123,7 @@ def mark_document_completed(results, document_id: UUID):
 @celery_app.task(name="tasks.cpu.handle_document_failure", queue="cpu_queue")
 def handle_document_failure(document_id: UUID, request, exc, traceback):
     _set_document_status(document_id, DocumentStatus.FAILED)
-    _rm_failed_docs(document_id)
+    _cleanup_failed_document(document_id)
 
 
 @celery_app.task(
@@ -134,7 +136,14 @@ def handle_document_failure(document_id: UUID, request, exc, traceback):
 def start_document_processing(self, user_id: UUID, document_id: UUID, file_path: str, chat_id: UUID, filename: str):
     _set_document_status(document_id, DocumentStatus.PROCESSING)
 
-    chunks = extract_and_chunk_text(file_path, filename)
+    try:
+        chunks = extract_and_chunk_text(file_path, filename)
+    except ConnectionError:
+        raise
+    except Exception:
+        _set_document_status(document_id, DocumentStatus.FAILED)
+        _cleanup_failed_document(document_id)
+        return
 
     parallel_tasks = [
         index_document_chunks.s(user_id, chat_id, document_id, chunk, i)

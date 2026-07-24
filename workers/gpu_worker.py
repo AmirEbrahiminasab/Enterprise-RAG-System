@@ -53,7 +53,7 @@ def index_document_chunks(self, user_id: UUID, chat_id: UUID, document_id: UUID,
             "text_content": chunk,
             "embedding": embeddings[0]
         }
-        asyncio.run(_async_index(uuid.uuid4(), body))
+        asyncio.run(_async_index(f"{document_id}_{chunk_index}", body))
     except Exception as e:
         raise e
 

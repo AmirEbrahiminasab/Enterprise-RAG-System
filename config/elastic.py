@@ -28,3 +28,12 @@ async def create_elastic_index():
             }
         }
         await es.indices.create(index=INDEX_NAME, body=mapping)
+
+
+async def delete_document_chunks(document_id: UUID) -> None:
+    await es.delete_by_query(
+        index=INDEX_NAME,
+        body={"query": {"term": {"document_id": str(document_id)}}},
+        refresh=True,
+        ignore=[404],
+    )

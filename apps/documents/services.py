@@ -51,7 +51,6 @@ async def get_chat_history(db: AsyncSession, chat_id: UUID):
     yield history
 
 async def remove_failed_document(db: AsyncSession, document_id: UUID):
-    result = await db.execute(delete(Document).where(Document.id == document_id))
+    await db.execute(delete(Document).where(Document.id == document_id))
     await db.commit()
-    await db.refresh(result)
     
