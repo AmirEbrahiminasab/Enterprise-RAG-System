@@ -1,11 +1,11 @@
 import asyncio
 from typing import Any, Dict, List
 from uuid import UUID
-
+from elasticsearch import AsyncElasticsearch
 from celery.utils.log import get_task_logger
 
 from config.celery_config import celery_app
-from config.elastic import INDEX_NAME, es
+from config.elastic import INDEX_NAME
 from rag.retriever import EmbeddingModel
 
 logger = get_task_logger(__name__)
@@ -13,12 +13,18 @@ _embed_model = None
 
 
 async def _async_search(search_body):
-    return await es.search(index=INDEX_NAME, body=search_body)
-
+    async_es = AsyncElasticsearch("http://elasticsearch:9200")
+    try:
+        return await async_es.search(index=INDEX_NAME, body=search_body)
+    finally:
+        await async_es.close()
 
 async def _async_index(doc_id, body):
-    await es.index(index=INDEX_NAME, id=str(doc_id), body=body)
-
+    async_es = AsyncElasticsearch("http://elasticsearch:9200")
+    try:
+        await async_es.index(index=INDEX_NAME, id=str(id), body=body)
+    finally:
+        await async_es.close()
 
 def get_embed_model():
     global _embed_model

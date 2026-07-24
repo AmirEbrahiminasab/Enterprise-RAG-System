@@ -104,9 +104,7 @@ async def start_query_processing(user_id: UUID, content: str, chat_id: UUID):
         yield "I couldn't generate a strategy to answer that query."
         return
 
-    questions_docs = await asyncio.to_thread(
-        _call_queries, questions_data, user_id, chat_id
-    )
+    questions_docs = await asyncio.to_thread(_call_queries, questions_data, user_id, chat_id)
 
     full_answer = ""
     llm_gen = _llm_call(questions_docs, history, content)

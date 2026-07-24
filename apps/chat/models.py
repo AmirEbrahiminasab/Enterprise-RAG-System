@@ -31,7 +31,12 @@ class RouterAgent:
         })
       ).json()
 
-      return resp['choices'][0]['message'].get('content')
+      try:
+        return resp['choices'][0]['message'].get('content')
+      except Exception as e:
+        print(f"Error in LLM call: {resp}")
+        raise e
+          
     
 
 class ChatAgent:

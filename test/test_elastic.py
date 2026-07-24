@@ -75,4 +75,4 @@ def main(query: str, chat_id: str):
 
     print(results)
 
-main("Hello", "8f80b7bd-ca8c-47d7-9cd1-e0be6fbee5d7")
+main("what are the references they used for their introduction to multi morbidity system and also what is the definition of multimorbidity?", "572269f6-f7b0-4074-baac-be4d5a8e3f46")
